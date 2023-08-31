@@ -12,14 +12,17 @@ class PartialConversion<T> {
       : value = null,
         hasValue = false;
 
-  static PartialConversion<Null> nullValue() => PartialConversion.value(null);
+  static PartialConversion<void> nullValue() => PartialConversion.value(null);
 
-  static PartialConversion<List<T>> many<T extends Object>(
-    PartialConversion<T?> Function() callback,
-  ) {
+  static PartialConversion<List<T>> many<T>(
+    PartialConversion<T> Function(List<T>) callback, {
+    bool Function(T)? doWhile,
+  }) {
+    doWhile ??= (value) => value != null;
+
     PartialConversion<List<T>> helper(List<T> current) {
-      return callback().map((value) {
-        if (value is T) {
+      return callback(current).map((value) {
+        if (doWhile!(value)) {
           // No need for immutability, nobody is going to touch this list after this call
           return helper(current..add(value));
         } else {
@@ -44,4 +47,20 @@ class PartialConversion<T> {
   PartialConversion<U> map<U>(PartialConversion<U> Function(T value) callback) => hasValue
       ? callback(value as T)
       : PartialConversion.continueConversion(() => this().map(callback));
+
+  PartialConversion<U> ifThrows<U>(U value, {required U orElse}) {
+    return PartialConversion.continueConversion(() {
+      try {
+        final result = this();
+
+        if (result.hasValue) {
+          return PartialConversion.value(orElse);
+        } else {
+          return result.ifThrows(value, orElse: orElse);
+        }
+      } catch (_) {
+        return PartialConversion.value(value);
+      }
+    });
+  }
 }
