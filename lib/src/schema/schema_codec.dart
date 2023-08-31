@@ -571,9 +571,9 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
     // The default attribute is OPTIONAL.
 
-    final _default = input.getAttribute('default');
+    final default_ = input.getAttribute('default');
     dynamic parsedDefault;
-    if (_default != null) {
+    if (default_ != null) {
       // TODO: Parse default value
 
       if (!isLenient) {
