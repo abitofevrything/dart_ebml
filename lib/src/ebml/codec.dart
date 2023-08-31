@@ -112,13 +112,11 @@ class EbmlDecoderSink extends ByteConversionSink {
   var _maxIDLength = 4;
   var _maxSizeLength = 8;
   Path _currentPath = const Path([]);
-  var _currentSchema = headerSchema;
 
   PartialConversion<Element> _startConversion() {
     // Read header
     return _currentConversion = _readAndOutputElement().map((_) {
       // Read body
-      _currentSchema = schema;
       return _readAndOutputElement().map((e) {
         output?.close();
         return PartialConversion.value(e.element);
@@ -139,7 +137,7 @@ class EbmlDecoderSink extends ByteConversionSink {
 
     return _readElementId().map((value) {
       final (:id, length: idLength) = value;
-      final schemaElement = _getIdMapping()[_currentPath]?[id];
+      final schemaElement = _idMapping[_currentPath]?[id];
 
       if (schemaElement == null) {
         throw FormatException('Invalid element id at current location');
@@ -277,13 +275,10 @@ class EbmlDecoderSink extends ByteConversionSink {
     }
   }
 
-  (ResolvedSchema, Map<Path, Map<int, SchemaElement>>)? _cachedIdMapping;
-  Map<Path, Map<int, SchemaElement>> _getIdMapping() {
-    if (_cachedIdMapping != null && _cachedIdMapping!.$1 == _currentSchema) {
-      return _cachedIdMapping!.$2;
-    }
+  late final Map<Path, Map<int, SchemaElement>> _idMapping = _getIdMapping();
 
-    final elements = [..._currentSchema.elements, voidElement, crc32Element];
+  Map<Path, Map<int, SchemaElement>> _getIdMapping() {
+    final elements = [...headerSchema.elements, ...schema.elements, voidElement, crc32Element];
 
     final result = <Path, Map<int, SchemaElement>>{};
     for (final element in elements) {
@@ -305,7 +300,6 @@ class EbmlDecoderSink extends ByteConversionSink {
       }
     }
 
-    _cachedIdMapping = (_currentSchema, result);
     return result;
   }
 

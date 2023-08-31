@@ -3,3 +3,6 @@ export 'src/schema/path_grammar.dart';
 export 'src/schema/predefined_schema.dart';
 export 'src/schema/resolved_schema.dart';
 export 'src/schema/schema.dart';
+
+export 'src/ebml/codec.dart' hide bitsPerByte, nanosecondsPerMicrosecond, vIntMax;
+export 'src/ebml/element.dart';
