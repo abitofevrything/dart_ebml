@@ -12,6 +12,7 @@ import 'element.dart';
 const bitsPerByte = 8;
 const vIntMax = 72057594037927934;
 const nanosecondsPerMicrosecond = 1000;
+final epoch = DateTime.utc(2001, 01, 01);
 
 class EbmlCodec extends Codec<Element, List<int>> {
   final Schema schema;
@@ -430,8 +431,6 @@ class EbmlDecoderSink extends ByteConversionSink {
     }
 
     return _readSignedIntegerElementData(length).map((data) {
-      final epoch = DateTime.utc(2001, 01, 01);
-
       // This is lossy.
       return PartialConversion.value(
         epoch.add(Duration(microseconds: data ~/ nanosecondsPerMicrosecond)),
@@ -584,23 +583,97 @@ class EbmlEncoder extends Converter<Element, List<int>> {
 
   @override
   Uint8List convert(Element input) {
-    final outputSink = _ValueSink<List<int>>();
-    final inputSink = startChunkedConversion(outputSink);
+    final writer = _EbmlDecoderWriter();
 
-    inputSink.add(input);
-    return outputSink.data as Uint8List;
+    final headerData = Uint8List(0);
+    final bodyData = writer.convertElement(input);
+
+    return Uint8List(headerData.length + bodyData.length)
+      ..setRange(0, headerData.length, headerData)
+      ..setRange(headerData.length, headerData.length + bodyData.length, bodyData);
   }
-
-  @override
-  Sink<Element> startChunkedConversion(Sink<List<int>> sink) => throw UnimplementedError();
 }
 
-class _ValueSink<T> implements Sink<T> {
-  T? data;
+class _EbmlDecoderWriter {
+  Uint8List convertElement(Element element) {
+    final elementId = convertVint(element.id, disallowAllOnes: false);
+    final elementData = switch (element) {
+      SignedIntegerElement(:final data) => convertIntegerData(data),
+      UnsignedIntegerElement(:final data) => convertUnsignedIntegerData(data),
+      FloatElement(:final data) => convertFloatData(data),
+      StringElement(:final data) => convertAsciiData(data),
+      Utf8Element(:final data) => convertUtf8Data(data),
+      DateElement(:final data) => convertDateData(data),
+      BinaryElement(:final data) => data,
+      MasterElement(:final data) => () {
+          final convertedChildren = data.map(convertElement).toList();
+          final length =
+              convertedChildren.fold(0, (previousValue, element) => previousValue + element.length);
+          final buffer = Uint8List(length);
+          var index = 0;
+          for (final child in convertedChildren) {
+            buffer.setRange(index, index += child.length, child);
+          }
+          return buffer;
+        }(),
+    };
+    final elementSize = convertVint(elementData.length, disallowAllOnes: true);
 
-  @override
-  void add(T data) => this.data = data;
+    return Uint8List(elementId.length + elementSize.length + elementData.length)
+      ..setRange(0, elementId.length, elementId)
+      ..setRange(elementId.length, elementId.length + elementSize.length, elementSize)
+      ..setRange(
+        elementId.length + elementSize.length,
+        elementId.length + elementSize.length + elementData.length,
+        elementData,
+      );
+  }
 
-  @override
-  void close() {}
+  Uint8List convertIntegerData(int data) {
+    final buffer = Uint8List(8)..buffer.asByteData().setInt64(0, data);
+    final zeroBytes = buffer.takeWhile((b) => b == 0).length;
+    return buffer.sublist(zeroBytes);
+  }
+
+  Uint8List convertUnsignedIntegerData(int data) {
+    final buffer = Uint8List(8)..buffer.asByteData().setUint64(0, data);
+    final zeroBytes = buffer.takeWhile((b) => b == 0).length;
+    return buffer.sublist(zeroBytes);
+  }
+
+  Uint8List convertFloatData(double data) {
+    return Uint8List(8)..buffer.asByteData().setFloat64(0, data);
+  }
+
+  Uint8List convertAsciiData(String data) {
+    return ascii.encode(data);
+  }
+
+  Uint8List convertUtf8Data(String data) {
+    return utf8.encode(data);
+  }
+
+  Uint8List convertDateData(DateTime data) {
+    final timestamp = data.difference(epoch);
+
+    return convertIntegerData(timestamp.inMicroseconds * nanosecondsPerMicrosecond);
+  }
+
+  Uint8List convertVint(int value, {required bool disallowAllOnes}) {
+    final neededBits = value.bitLength;
+    var length = (neededBits / 7).ceil();
+
+    if (disallowAllOnes && value == (1 << neededBits) - 1) {
+      // Encoded value would be all 1s.
+      length++;
+    }
+
+    final result = Uint8List(length)..buffer.asByteData().setInt64(0, value);
+
+    // // Set VINT_MARKER
+    result[result.length - 1 - length] |= 1 << (bitsPerByte - length);
+
+    final zeroBytes = result.takeWhile((b) => b == 0).length;
+    return result.sublist(zeroBytes);
+  }
 }
