@@ -98,8 +98,10 @@ class EbmlDecoderSink extends ByteConversionSink {
 
   PartialConversion<Uint8List> _read<R>(int length) {
     // The != check is to cause _read(0) calls to throw if empty and closed
-    if (length <= _bufferFillIndex - _bufferReadIndex && _bufferFillIndex != _bufferReadIndex) {
-      final data = Uint8List.sublistView(_buffer, _bufferReadIndex, _bufferReadIndex += length);
+    if (length <= _bufferFillIndex - _bufferReadIndex &&
+        _bufferFillIndex != _bufferReadIndex) {
+      final data = Uint8List.sublistView(
+          _buffer, _bufferReadIndex, _bufferReadIndex += length);
       return PartialConversion.value(data);
     } else if (_isClosed) {
       throw StateError('Cannot read more data from a closed sink');
@@ -128,7 +130,8 @@ class EbmlDecoderSink extends ByteConversionSink {
   Element? _overRead;
   int? _overReadSize;
 
-  PartialConversion<({Element element, int size})> _readAndOutputElement({int? parentLength}) {
+  PartialConversion<({Element element, int size})> _readAndOutputElement(
+      {int? parentLength}) {
     if (_overRead != null) {
       final result = (element: _overRead!, size: _overReadSize!);
       _overRead = null;
@@ -193,7 +196,8 @@ class EbmlDecoderSink extends ByteConversionSink {
             ElementType.date => _readDateElementData(size!),
             ElementType.binary => _readBinaryElementData(size!),
             ElementType.master =>
-              _readMasterElementData(size, parentLength: parentLength).map((value) {
+              _readMasterElementData(size, parentLength: parentLength)
+                  .map((value) {
                 realSize ??= value.size;
                 _overRead = value.overRead;
                 _overReadSize = value.overReadSize;
@@ -279,7 +283,12 @@ class EbmlDecoderSink extends ByteConversionSink {
   late final Map<Path, Map<int, SchemaElement>> _idMapping = _getIdMapping();
 
   Map<Path, Map<int, SchemaElement>> _getIdMapping() {
-    final elements = [...headerSchema.elements, ...schema.elements, voidElement, crc32Element];
+    final elements = [
+      ...headerSchema.elements,
+      ...schema.elements,
+      voidElement,
+      crc32Element
+    ];
 
     final result = <Path, Map<int, SchemaElement>>{};
     for (final element in elements) {
@@ -331,7 +340,8 @@ class EbmlDecoderSink extends ByteConversionSink {
 
       if (!isLenient) {
         if (length > _maxIDLength) {
-          throw FormatException('Element ID length is larger than EBMLMaxIDLength');
+          throw FormatException(
+              'Element ID length is larger than EBMLMaxIDLength');
         }
         if (value == 0) {
           throw FormatException('Element ID VINT_DATA may not be all zeroes');
@@ -365,7 +375,8 @@ class EbmlDecoderSink extends ByteConversionSink {
 
       if (!isLenient) {
         if (length > _maxSizeLength) {
-          throw FormatException('Element Size length is larger than EBMLMaxSizeLength');
+          throw FormatException(
+              'Element Size length is larger than EBMLMaxSizeLength');
         }
       }
 
@@ -411,17 +422,20 @@ class EbmlDecoderSink extends ByteConversionSink {
         4 => data.buffer.asFloat32List()[0],
         8 => data.buffer.asFloat64List()[0],
         // 0 length is handled in calling function
-        _ => throw FormatException('Float element length must be 0, 4, or 8 octets'),
+        _ => throw FormatException(
+            'Float element length must be 0, 4, or 8 octets'),
       });
     });
   }
 
   PartialConversion<String> _readStringElementData(int length) {
-    return _read(length).map((data) => PartialConversion.value(ascii.decode(data)));
+    return _read(length)
+        .map((data) => PartialConversion.value(ascii.decode(data)));
   }
 
   PartialConversion<String> _readUtf8ElementData(int length) {
-    return _read(length).map((data) => PartialConversion.value(utf8.decode(data)));
+    return _read(length)
+        .map((data) => PartialConversion.value(utf8.decode(data)));
   }
 
   PartialConversion<DateTime> _readDateElementData(int length) {
@@ -449,11 +463,18 @@ class EbmlDecoderSink extends ByteConversionSink {
     int? parentLength,
   }) {
     if (length == null) {
-      return PartialConversion.many<({Element element, int size, bool isDone, bool isOverRead})>(
-          doWhile: (value) => !value.isDone, (values) {
+      return PartialConversion.many<
+          ({
+            Element element,
+            int size,
+            bool isDone,
+            bool isOverRead
+          })>(doWhile: (value) => !value.isDone, (values) {
         var remainingParentLength = parentLength == null
             ? null
-            : parentLength - values.fold<int>(0, (previous, element) => previous + element.size);
+            : parentLength -
+                values.fold<int>(
+                    0, (previous, element) => previous + element.size);
 
         return _readAndOutputElement(parentLength: remainingParentLength).map(
           (value) {
@@ -483,7 +504,8 @@ class EbmlDecoderSink extends ByteConversionSink {
             }
 
             // Any EBML Element that is a valid Root Element according to the EBML Schema, Global Elements excluded.
-            if (element.schemaElement.path.isRoot && !element.schemaElement.path.isGlobal) {
+            if (element.schemaElement.path.isRoot &&
+                !element.schemaElement.path.isGlobal) {
               return PartialConversion.value(
                 (element: element, size: size, isDone: true, isOverRead: true),
               );
@@ -502,7 +524,12 @@ class EbmlDecoderSink extends ByteConversionSink {
               // The end of the Parent Element with a known size has been reached.
               if (remainingParentLength! <= 0) {
                 return PartialConversion.value(
-                  (element: element, size: size, isDone: true, isOverRead: false),
+                  (
+                    element: element,
+                    size: size,
+                    isDone: true,
+                    isOverRead: false
+                  ),
                 );
               }
             }
@@ -510,7 +537,12 @@ class EbmlDecoderSink extends ByteConversionSink {
             if (_bufferReadIndex == _bufferFillIndex) {
               return _read(0).ifThrows(
                 (element: element, size: size, isDone: true, isOverRead: false),
-                orElse: (element: element, size: size, isDone: false, isOverRead: false),
+                orElse: (
+                  element: element,
+                  size: size,
+                  isDone: false,
+                  isOverRead: false
+                ),
               );
             }
 
@@ -526,7 +558,12 @@ class EbmlDecoderSink extends ByteConversionSink {
         for (final result in results) {
           if (result.isOverRead) {
             return PartialConversion.value(
-              (elements: elements, size: size, overRead: result.element, overReadSize: result.size),
+              (
+                elements: elements,
+                size: size,
+                overRead: result.element,
+                overReadSize: result.size
+              ),
             );
           }
         }
@@ -538,13 +575,15 @@ class EbmlDecoderSink extends ByteConversionSink {
     } else {
       return PartialConversion.many<({Element? element, int size})>(
               doWhile: (value) => value.element != null, (values) {
-        final remaining =
-            length - values.fold<int>(0, (previousValue, element) => previousValue + element.size);
+        final remaining = length -
+            values.fold<int>(
+                0, (previousValue, element) => previousValue + element.size);
 
         if (remaining <= 0) {
           if (!isLenient) {
             if (remaining < 0) {
-              throw FormatException('Child of master element overran master element length');
+              throw FormatException(
+                  'Child of master element overran master element length');
             }
           }
 
@@ -553,7 +592,8 @@ class EbmlDecoderSink extends ByteConversionSink {
 
         return _readAndOutputElement(parentLength: remaining);
       })
-          .map((value) => PartialConversion.value(value.whereType<({Element element, int size})>()))
+          .map((value) => PartialConversion.value(
+              value.whereType<({Element element, int size})>()))
           .map(
         (values) {
           final elements = <Element>[];
@@ -564,8 +604,12 @@ class EbmlDecoderSink extends ByteConversionSink {
             size += result.size;
           }
 
-          return PartialConversion.value(
-              (elements: elements, size: size, overRead: null, overReadSize: null));
+          return PartialConversion.value((
+            elements: elements,
+            size: size,
+            overRead: null,
+            overReadSize: null
+          ));
         },
       );
     }
@@ -590,7 +634,8 @@ class EbmlEncoder extends Converter<Element, List<int>> {
 
     return Uint8List(headerData.length + bodyData.length)
       ..setRange(0, headerData.length, headerData)
-      ..setRange(headerData.length, headerData.length + bodyData.length, bodyData);
+      ..setRange(
+          headerData.length, headerData.length + bodyData.length, bodyData);
   }
 }
 
@@ -607,8 +652,8 @@ class _EbmlDecoderWriter {
       BinaryElement(:final data) => data,
       MasterElement(:final data) => () {
           final convertedChildren = data.map(convertElement).toList();
-          final length =
-              convertedChildren.fold(0, (previousValue, element) => previousValue + element.length);
+          final length = convertedChildren.fold(
+              0, (previousValue, element) => previousValue + element.length);
           final buffer = Uint8List(length);
           var index = 0;
           for (final child in convertedChildren) {
@@ -621,7 +666,8 @@ class _EbmlDecoderWriter {
 
     return Uint8List(elementId.length + elementSize.length + elementData.length)
       ..setRange(0, elementId.length, elementId)
-      ..setRange(elementId.length, elementId.length + elementSize.length, elementSize)
+      ..setRange(
+          elementId.length, elementId.length + elementSize.length, elementSize)
       ..setRange(
         elementId.length + elementSize.length,
         elementId.length + elementSize.length + elementData.length,
@@ -656,7 +702,8 @@ class _EbmlDecoderWriter {
   Uint8List convertDateData(DateTime data) {
     final timestamp = data.difference(epoch);
 
-    return convertIntegerData(timestamp.inMicroseconds * nanosecondsPerMicrosecond);
+    return convertIntegerData(
+        timestamp.inMicroseconds * nanosecondsPerMicrosecond);
   }
 
   Uint8List convertVint(int value, {required bool disallowAllOnes}) {

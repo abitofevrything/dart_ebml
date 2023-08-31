@@ -11,6 +11,8 @@ import 'schema.dart';
 const bytesPerInt = 8;
 const bitsPerByte = 8;
 
+const ebmlSchema = EbmlSchemaCodec();
+
 class EbmlSchemaCodec extends Codec<Schema, XmlDocument> {
   final bool isLenient;
 
@@ -34,7 +36,8 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
             XmlAttribute(XmlName('xmlns'), 'urn:ietf:rfc:8794'),
             XmlAttribute(XmlName('docType'), input.docType),
             XmlAttribute(XmlName('version'), input.version.toString()),
-            if (input.ebml != null) XmlAttribute(XmlName('ebml'), input.ebml.toString()),
+            if (input.ebml != null)
+              XmlAttribute(XmlName('ebml'), input.ebml.toString()),
           ],
           [
             for (final element in input.elements)
@@ -43,15 +46,20 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
                 [
                   XmlAttribute(XmlName('name'), element.name),
                   XmlAttribute(XmlName('path'), _convertPath(element.path)),
-                  XmlAttribute(XmlName('id'), '0x${_convertVint(element.id).toRadixString(16)}'),
+                  XmlAttribute(XmlName('id'),
+                      '0x${_convertVint(element.id).toRadixString(16)}'),
                   if (element.minOccurs != null)
-                    XmlAttribute(XmlName('minOccurs'), element.minOccurs.toString()),
+                    XmlAttribute(
+                        XmlName('minOccurs'), element.minOccurs.toString()),
                   if (element.maxOccurs != null)
-                    XmlAttribute(XmlName('maxOccurs'), element.maxOccurs.toString()),
+                    XmlAttribute(
+                        XmlName('maxOccurs'), element.maxOccurs.toString()),
                   if (element.range != null)
-                    XmlAttribute(XmlName('range'), _convertRange(element.range!)),
+                    XmlAttribute(
+                        XmlName('range'), _convertRange(element.range!)),
                   if (element.length != null)
-                    XmlAttribute(XmlName('length'), _convertRange(element.length!)),
+                    XmlAttribute(
+                        XmlName('length'), _convertRange(element.length!)),
                   // TODO: Encode default value
                   XmlAttribute(
                     XmlName('type'),
@@ -66,9 +74,11 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
                       element.unknownSizeAllowed!.toString(),
                     ),
                   if (element.recursive != null)
-                    XmlAttribute(XmlName('recursive'), element.recursive!.toString()),
+                    XmlAttribute(
+                        XmlName('recursive'), element.recursive!.toString()),
                   if (element.recurring != null)
-                    XmlAttribute(XmlName('recurring'), element.recurring!.toString()),
+                    XmlAttribute(
+                        XmlName('recurring'), element.recurring!.toString()),
                   if (element.minVer != null)
                     XmlAttribute(XmlName('minver'), element.minVer!.toString()),
                   if (element.maxVer != null)
@@ -84,7 +94,8 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
       path.parentPath
           .map(
             (e) => switch (e) {
-              PathAtom(:final name, :final isRecursive) => '${isRecursive ? '+' : ''}$name\\',
+              PathAtom(:final name, :final isRecursive) =>
+                '${isRecursive ? '+' : ''}$name\\',
               GlobalPlaceholder(:final minOccurrences, :final maxOccurrences) =>
                 '(${minOccurrences ?? ''}-${maxOccurrences ?? ''}\\)',
             },
@@ -94,10 +105,17 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
 
   String _convertRange(Range range) => switch (range) {
         // TODO: Encode floating point literals correctly
-        Range(:final exactly?, :final negated!) => '${negated ? 'not ' : ''}$exactly',
-        Range(bounds: (final lower?, null), inclusiveBounds: (final inclusive, _)!) =>
+        Range(:final exactly?, :final negated!) =>
+          '${negated ? 'not ' : ''}$exactly',
+        Range(
+          bounds: (final lower?, null),
+          inclusiveBounds: (final inclusive, _)!
+        ) =>
           '>${inclusive ? '=' : ''}$lower',
-        Range(bounds: (null, final upper!), inclusiveBounds: (_, final inclusive)!) =>
+        Range(
+          bounds: (null, final upper!),
+          inclusiveBounds: (_, final inclusive)!
+        ) =>
           '<${inclusive ? '=' : ''}$upper',
         Range(
           bounds: (final lower!, final upper!),
@@ -105,7 +123,10 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
               (final lowerInclusive, final upperInclusive)
         ) =>
           '>${lowerInclusive ? '=' : ':'}$lower,<${upperInclusive ? '=' : ''}$upper',
-        Range(bounds: (final lower!, final upper!), inclusiveBounds: (true, true)) =>
+        Range(
+          bounds: (final lower!, final upper!),
+          inclusiveBounds: (true, true)
+        ) =>
           '$lower-$upper',
         _ => throw StateError('Invalid range'),
       };
@@ -155,7 +176,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       if (root.name.local != 'EBMLSchema') {
         throw FormatException('Root element is not <EBMLSchema>');
       }
-      if (root.childElements.any((element) => element.name.local != 'element')) {
+      if (root.childElements
+          .any((element) => element.name.local != 'element')) {
         throw FormatException('Child of root is not <element>');
       }
     }
@@ -165,7 +187,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
     final docType = root.getAttribute('docType');
     if (docType == null) {
-      throw FormatException('Missing docType attribute on <EBMLSchema> element');
+      throw FormatException(
+          'Missing docType attribute on <EBMLSchema> element');
     }
 
     // The version lists a nonnegative integer that specifies the version of
@@ -176,7 +199,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
     final version = root.getAttribute('version');
     if (version == null) {
-      throw FormatException('Missing version attribute on <EBMLSchema> element');
+      throw FormatException(
+          'Missing version attribute on <EBMLSchema> element');
     }
     final parsedVersion = int.tryParse(version);
     if (parsedVersion == null) {
@@ -221,14 +245,16 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       // (referred to as the Root Element) that occurs exactly once within an
       // EBML Document.  [ ... ]
 
-      if (schema.elements.where((e) => e.path.elements.length == 1).length != 1) {
+      if (schema.elements.where((e) => e.path.elements.length == 1).length !=
+          1) {
         throw FormatException('Schema must define exactly one root element');
       }
 
       // The EBML Schema MUST NOT use the Element ID "0x1A45DFA3", which is
       // reserved for the EBML Header for the purpose of resynchronization.
 
-      if (schema.elements.any((element) => element.id == _convertVint(0x1A45DFA3))) {
+      if (schema.elements
+          .any((element) => element.id == _convertVint(0x1A45DFA3))) {
         throw FormatException('Schema may not use the element ID 0x1A45DFA3');
       }
 
@@ -246,11 +272,14 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       // within another EBML Element with the same EBMLParentPath as this
       // "@path".
 
-      if (schema.elements.map((e) => e.path).toSet().length != schema.elements.length) {
-        throw FormatException('path attributes must be unique within the schema');
+      if (schema.elements.map((e) => e.path).toSet().length !=
+          schema.elements.length) {
+        throw FormatException(
+            'path attributes must be unique within the schema');
       }
 
-      final groupedByElementId = schema.elements.groupListsBy((element) => element.id);
+      final groupedByElementId =
+          schema.elements.groupListsBy((element) => element.id);
       for (final elementsSharingId in groupedByElementId.values) {
         if (elementsSharingId.length == 1) continue;
 
@@ -259,7 +288,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
               elementsSharingId.map((e) => e.path.parentPath),
             ).length !=
             elementsSharingId.length) {
-          throw FormatException('Elements with the same id may not share the same EBMLParentPath');
+          throw FormatException(
+              'Elements with the same id may not share the same EBMLParentPath');
         }
       }
 
@@ -290,7 +320,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
       for (final element in schema.elements) {
         if (element.unknownSizeAllowed == true) {
-          final parents = schema.elements.where((e) => e.path.isParentOf(element.path));
+          final parents =
+              schema.elements.where((e) => e.path.isParentOf(element.path));
 
           for (final parent in parents) {
             if (parent.unknownSizeAllowed != true) {
@@ -349,7 +380,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
     }
     final pathParseResult = const PathGrammar().build<Path>().parse(path);
     if (pathParseResult is! Success) {
-      throw FormatException('Invalid path attribute: ${pathParseResult.message}');
+      throw FormatException(
+          'Invalid path attribute: ${pathParseResult.message}');
     }
     final parsedPath = pathParseResult.value;
     if (!isLenient) {
@@ -358,12 +390,17 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
           'The EBMLAtomName of the EBMLElement part must be equal to the name attribute',
         );
       }
-      for (final globalPlaceholder in parsedPath.elements.whereType<GlobalPlaceholder>()) {
+      for (final globalPlaceholder
+          in parsedPath.elements.whereType<GlobalPlaceholder>()) {
         if (globalPlaceholder.maxOccurrences == 0) {
-          throw FormatException('GlobalPlaceholder PathMaxOccurrence must not be 0');
+          throw FormatException(
+              'GlobalPlaceholder PathMaxOccurrence must not be 0');
         }
-        if (globalPlaceholder case GlobalPlaceholder(:final minOccurrences?, :final maxOccurrences?)
-            when maxOccurrences < minOccurrences) {
+        if (globalPlaceholder
+            case GlobalPlaceholder(
+              :final minOccurrences?,
+              :final maxOccurrences?
+            ) when maxOccurrences < minOccurrences) {
           throw FormatException(
             'GlobalPlaceholder PathMaxOccurrence must not be less than PathMinOccurrence',
           );
@@ -525,7 +562,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
       if (!isLenient) {
         if (parsedType == ElementType.master) {
-          throw FormatException('master elements cannot declare a default value');
+          throw FormatException(
+              'master elements cannot declare a default value');
         }
         if (parsedMinOccurs != null && parsedMinOccurs > 1) {
           throw FormatException(
@@ -551,10 +589,12 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
     if (unknownSizeAllowed != null) {
       if (!const ['true', 'false', '1', '0'].contains(unknownSizeAllowed)) {
         if (!isLenient) {
-          throw FormatException('unknownsizeallowed attribute is not a valid boolean');
+          throw FormatException(
+              'unknownsizeallowed attribute is not a valid boolean');
         }
       } else {
-        parsedUnknownSizeAllowed = const ['true', '1'].contains(unknownSizeAllowed);
+        parsedUnknownSizeAllowed =
+            const ['true', '1'].contains(unknownSizeAllowed);
         if (!isLenient && parsedType != ElementType.master) {
           throw FormatException(
             'elements that are not master elements may not set unknownsizeallowed to true',
@@ -590,7 +630,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
             );
           }
           if (parsedUnknownSizeAllowed == true && parsedRecursive == true) {
-            throw FormatException('unknownsizeallowed and recursive may not be both set to true');
+            throw FormatException(
+                'unknownsizeallowed and recursive may not be both set to true');
           }
         }
       }
@@ -692,12 +733,14 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
   static final _exactlyPattern = RegExp(r'^(-?\d+)$');
   static final _notPattern = RegExp(r'^not +(-?\d+)$');
   static final _oneRestrictionPattern = RegExp(r'^(<|<=|>=|>) *(-?\d+)$');
-  static final _twoRestrictionPattern = RegExp(r'^(>|>=) *(-?\d+),(<|<=) *(-?\d+)$');
+  static final _twoRestrictionPattern =
+      RegExp(r'^(>|>=) *(-?\d+),(<|<=) *(-?\d+)$');
   static final _rangePattern = RegExp(r'^(-?\d+)-(-?\d+)$');
 
   Range _convertRange(String input) {
     final exactlyMatch = _exactlyPattern.firstMatch(input);
-    if (exactlyMatch != null) return Range.exactly(int.parse(exactlyMatch.group(1)!));
+    if (exactlyMatch != null)
+      return Range.exactly(int.parse(exactlyMatch.group(1)!));
 
     final notMatch = _notPattern.firstMatch(input);
     if (notMatch != null) return Range.not(int.parse(notMatch.group(1)!));
@@ -708,8 +751,12 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       final restriction = oneRestrictionMatch.group(1)!;
 
       return switch (restriction) {
-        '>' || '>=' => Range.between(limit, null, isLowerInclusive: restriction == '>='),
-        '<' || '<=' => Range.between(null, limit, isUpperInclusive: restriction == '<='),
+        '>' ||
+        '>=' =>
+          Range.between(limit, null, isLowerInclusive: restriction == '>='),
+        '<' ||
+        '<=' =>
+          Range.between(null, limit, isUpperInclusive: restriction == '<='),
         _ => throw StateError('Unreachable state'),
       };
     }
@@ -720,7 +767,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       final upper = int.parse(twoRestrictionMatch.group(4)!);
 
       if (upper < lower) {
-        throw FormatException('Range lower bound must be less than range upper bound');
+        throw FormatException(
+            'Range lower bound must be less than range upper bound');
       }
 
       return Range.between(
@@ -737,7 +785,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       final upper = int.parse(rangeMatch.group(2)!);
 
       if (upper < lower) {
-        throw FormatException('Range lower bound must be less than range upper bound');
+        throw FormatException(
+            'Range lower bound must be less than range upper bound');
       }
 
       return Range.between(
@@ -754,7 +803,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
   }
 
   int _convertVint(int input) {
-    final bytes = Uint8List(bytesPerInt)..buffer.asByteData().setUint64(0, input);
+    final bytes = Uint8List(bytesPerInt)
+      ..buffer.asByteData().setUint64(0, input);
     final zeroByteCount = bytes.takeWhile((value) => value == 0).length;
 
     final head = bytes[zeroByteCount];

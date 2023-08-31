@@ -11,7 +11,12 @@ sealed class Element {
 
   final SchemaElement schemaElement;
 
-  const Element({required this.id, required this.size, required this.schemaElement});
+  String get name => schemaElement.name;
+
+  ElementType get type => schemaElement.type;
+
+  const Element(
+      {required this.id, required this.size, required this.schemaElement});
 }
 
 class SignedIntegerElement extends Element {
