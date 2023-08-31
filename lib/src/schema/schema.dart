@@ -2,15 +2,31 @@ import 'package:collection/collection.dart';
 
 import 'resolved_schema.dart';
 
+/// An EBML schema.
+///
+/// A schema contains information about the identifiers used in EBML documents
+/// using this schema as well as any information needed to parse the elements
+/// in the EBML document.
 class Schema {
+  /// The official name of the EBML Document Type that is defined by this EBML
+  /// Schema.
   final String docType;
 
+  /// The version of the docType documented by this EBML Schema.
+  ///
+  /// Unlike XML Schemas, an EBML [Schema] documents all versions of a
+  /// [docType]'s definition rather than using separate EBML [Schema]s for each
+  /// version of a [docType]. EBML [Element]s may be introduced and deprecated
+  /// by using the [SchemaElement.minVer] and [SchemaElement.maxVer] attributes.
   final int version;
 
+  /// The version of the EBML Header used by this EBML Schema.
   final int? ebml;
 
+  /// A listing of all the elements contained in this schema.
   final List<SchemaElement> elements;
 
+  /// Create a new [Schema].
   const Schema({
     required this.docType,
     required this.version,
@@ -18,6 +34,8 @@ class Schema {
     required this.elements,
   });
 
+  /// Resolve this schema into a [ResolvedSchema] by giving attributes their
+  /// default values if needed.
   ResolvedSchema resolve() {
     return ResolvedSchema(
       docType: docType,
@@ -59,7 +77,8 @@ class Schema {
   }
 
   @override
-  int get hashCode => Object.hash(docType, version, ebml, const ListEquality().hash(elements));
+  int get hashCode =>
+      Object.hash(docType, version, ebml, const ListEquality().hash(elements));
 
   @override
   bool operator ==(Object other) =>
@@ -70,35 +89,67 @@ class Schema {
       const ListEquality().equals(other.elements, elements);
 }
 
+/// The description of an [Element] in a [Schema].
 class SchemaElement {
+  /// The human-readable name of this EBML Element.
+  ///
+  /// The value of [name] MUST be in the form of characters "A" to "Z", "a" to
+  /// "z", "0" to "9", "-", and ".". The first character of [name] MUST be in
+  /// the form of an "A" to "Z", "a" to "z", or "0" to "9" character.
   final String name;
 
+  /// The allowed storage locations of this EBML Element within an EBML
+  /// Document.
   final Path path;
 
+  /// The ID of this element in an EBML Document.
   final int id;
 
+  /// The minimum permitted number of occurrences of this EBML Element within
+  /// its Parent Element.
   final int? minOccurs;
 
+  /// The maximum permitted number of occurrences of this EBML Element within
+  /// its Parent Element.
   final int? maxOccurs;
 
+  /// A restriction on the value of this element.
   final Range? range;
 
+  /// A restriction on the length of this element's data.
   final Range? length;
 
+  /// The default value of this element.
   final dynamic defaultValue;
 
+  /// The type of this element.
   final ElementType type;
 
+  /// Whether this element is allowed to have an unknown size.
   final bool? unknownSizeAllowed;
 
+  /// Whether this element can be found within itself.
   final bool? recursive;
 
+  /// Whether this element can be found multiple times within its parent.
   final bool? recurring;
 
+  /// The version of the EBML Schema this EBML Element was added.
   final int? minVer;
 
+  /// The version of the EBML Schema this EBML Element was removed.
   final int? maxVer;
 
+  /// Whether this is a global element.
+  bool get isGlobal => path.isGlobal;
+
+  /// Whether this is a root element.
+  bool get isRoot => path.isRoot;
+
+  /// Whether this is a top level element.
+  bool get isTopLevel => path.isTopLevel;
+
+  /// Create a new [SchemaElement].
   const SchemaElement({
     required this.name,
     required this.path,
@@ -117,8 +168,21 @@ class SchemaElement {
   });
 
   @override
-  int get hashCode => Object.hash(name, path, id, minOccurs, maxOccurs, range, length, defaultValue,
-      type, unknownSizeAllowed, recursive, recurring, minVer, maxVer);
+  int get hashCode => Object.hash(
+      name,
+      path,
+      id,
+      minOccurs,
+      maxOccurs,
+      range,
+      length,
+      defaultValue,
+      type,
+      unknownSizeAllowed,
+      recursive,
+      recurring,
+      minVer,
+      maxVer);
 
   @override
   bool operator ==(Object other) =>
@@ -139,63 +203,40 @@ class SchemaElement {
       other.maxVer == maxVer;
 }
 
+/// The location of a [Element] in an EBML Document.
 class Path {
+  /// The elements of this path.
   final List<PathElement> elements;
 
+  /// Create a new [Path].
   const Path(this.elements);
 
+  /// The last element of this path.
   PathAtom get ebmlElement => elements.last as PathAtom;
 
+  /// This path's parent path.
   List<PathElement> get parentPath =>
       UnmodifiableListView(elements.sublist(0, elements.length - 1));
 
-  bool get isGlobal => parentPath.isNotEmpty && parentPath.last is GlobalPlaceholder;
+  /// Whether this path is a global element's path.
+  bool get isGlobal =>
+      parentPath.isNotEmpty && parentPath.last is GlobalPlaceholder;
 
+  /// Whether this path is a root element's path.
   bool get isRoot => parentPath.isEmpty;
 
-  bool get isTopLevel => parentPath.length == 1 && parentPath.single is PathAtom;
+  /// Whether this path is a top level element's path.
+  bool get isTopLevel =>
+      parentPath.length == 1 && parentPath.single is PathAtom;
 
-  @override
-  int get hashCode => const ListEquality().hash(elements);
-
-  // bool test(List<String> parts) {
-  //   bool tryTest(List<PathElement> elements, List<String> parts, {bool hasRecursed = false}) {
-  //     if (parts.isEmpty || elements.isEmpty) {
-  //       return false;
-  //     }
-
-  //     final currentElement = elements.first;
-  //     final currentPart = parts.first;
-
-  //     return switch (currentElement) {
-  //       PathAtom(:final name, isRecursive: true) =>
-  //         // Either we continue to match the current element
-  //         (name == currentPart && tryTest(elements, parts.sublist(1), hasRecursed: true)) ||
-  //             // Or we have matched it once (hasRecursed) and we match the rest of the path
-  //             (hasRecursed && tryTest(elements.sublist(1), parts.sublist(1))),
-  //       PathAtom(:final name, isRecursive: false) =>
-  //         name == currentPart && tryTest(elements.sublist(1), parts.sublist(1)),
-  //       GlobalPlaceholder(:final minOccurrences, :final maxOccurrences) => () {
-  //           for (int repeats = minOccurrences ?? 0;
-  //               repeats <= (maxOccurrences ?? (parts.length - 1));
-  //               repeats++) {
-  //             if (tryTest(elements.sublist(1), parts.sublist(repeats))) {
-  //               return true;
-  //             }
-  //           }
-
-  //           return false;
-  //         }(),
-  //     };
-  //   }
-
-  //   return tryTest(elements, parts);
-  // }
-
+  /// Whether this path is the parent of [other].
   bool isParentOf(Path other) =>
       other.elements.length > elements.length &&
-      const ListEquality().equals(other.elements.sublist(0, elements.length), elements);
+      const ListEquality()
+          .equals(other.elements.sublist(0, elements.length), elements);
 
+  /// Whether an element with this path can be found in an element with the path
+  /// [other].
   bool canBeFoundIn(Path other) {
     if (other.isParentOf(this)) {
       return true;
@@ -205,13 +246,17 @@ class Path {
       return false;
     }
 
+    if (this == other && ebmlElement.isRecursive) {
+      return true;
+    }
+
     // Strip GlobalPlaceholder
     final globalPrefix = elements.sublist(0, parentPath.length - 1);
     final globalPlaceholder = parentPath.last as GlobalPlaceholder;
 
     if (globalPrefix.isNotEmpty) {
-      if (!const ListEquality()
-          .equals(globalPrefix, other.elements.sublist(0, globalPrefix.length))) {
+      if (!const ListEquality().equals(
+          globalPrefix, other.elements.sublist(0, globalPrefix.length))) {
         return false;
       }
     }
@@ -234,19 +279,28 @@ class Path {
   }
 
   @override
+  int get hashCode => const ListEquality().hash(elements);
+
+  @override
   bool operator ==(Object other) =>
       other is Path && const ListEquality().equals(other.elements, elements);
 }
 
+/// An element in a [Path].
 sealed class PathElement {
+  /// Create a new [PathElement].
   const PathElement();
 }
 
+/// An atom in a [Path].
 class PathAtom extends PathElement {
+  /// Whether this atom is recursive.
   final bool isRecursive;
 
+  /// The name of this atom.
   final String name;
 
+  /// Create a new [PathAtom].
   const PathAtom({required this.name, required this.isRecursive});
 
   @override
@@ -254,15 +308,22 @@ class PathAtom extends PathElement {
 
   @override
   bool operator ==(Object other) =>
-      other is PathAtom && other.isRecursive == isRecursive && other.name == name;
+      other is PathAtom &&
+      other.isRecursive == isRecursive &&
+      other.name == name;
 }
 
+/// A GlobalPlaceholder in a [Path].
 class GlobalPlaceholder extends PathElement {
+  /// The minimum number of atoms that can replace this GlobalPlaceholder.
   final int? minOccurrences;
 
+  /// The maximum number of atoms that can replace this GlobalPlaceholder.
   final int? maxOccurrences;
 
-  const GlobalPlaceholder({required this.minOccurrences, required this.maxOccurrences});
+  /// Create a new [GlobalPlaceholder].
+  const GlobalPlaceholder(
+      {required this.minOccurrences, required this.maxOccurrences});
 
   @override
   int get hashCode => Object.hash(minOccurrences, maxOccurrences);
@@ -274,39 +335,61 @@ class GlobalPlaceholder extends PathElement {
       other.maxOccurrences == maxOccurrences;
 }
 
-enum ElementType { integer, uinteger, float, string, date, utf8, master, binary }
+/// The type of an element in an EBML Schema or Document.
+enum ElementType {
+  integer,
+  uinteger,
+  float,
+  string,
+  date,
+  utf8,
+  master,
+  binary
+}
 
-class Range {
+/// A numerical range.
+interface class Range {
+  /// A number values must match exactly if [negated] is false, or that values
+  /// must not be if [negated] is true.
   final num? exactly;
 
+  /// Whether to invert the meaning of [exactly].
   final bool? negated;
 
+  /// A pair of (lower, upper) bounds values must fall between.
   final (num?, num?)? bounds;
 
+  /// Whether the upper and lower bound are inclusive.
   final (bool, bool)? inclusiveBounds;
 
+  /// Create a range where values must match [exactly].
   const Range.exactly(num this.exactly)
       : negated = false,
         bounds = null,
         inclusiveBounds = null;
 
+  /// Create a range where values must not be [exactly].
   const Range.not(num this.exactly)
       : negated = true,
         bounds = null,
         inclusiveBounds = null;
 
+  /// Create a range where values must fall between an upper and a lower bound.
   const Range.between(
     num? lower,
     num? upper, {
     bool isLowerInclusive = false,
     bool isUpperInclusive = false,
-  })  : assert(lower != null || upper != null, 'At least one of lower and upper must be provided'),
-        assert(lower == null || upper == null || lower <= upper, 'Lower must be less than upper'),
+  })  : assert(lower != null || upper != null,
+            'At least one of lower and upper must be provided'),
+        assert(lower == null || upper == null || lower <= upper,
+            'Lower must be less than upper'),
         exactly = null,
         negated = null,
         bounds = (lower, upper),
         inclusiveBounds = (isLowerInclusive, isUpperInclusive);
 
+  /// Test a number against this [Range].
   bool test(num value) {
     if (exactly != null) {
       return negated! ^ (exactly == value);

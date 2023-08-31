@@ -4,12 +4,16 @@ import 'package:petitparser/petitparser.dart';
 
 import 'schema.dart';
 
+/// A petitparser grammar that can parse EBML Element paths.
 class PathGrammar extends GrammarDefinition<Path> {
+  /// Create a new [PathGrammar].
   const PathGrammar();
 
-  List<E> _flatten<E>(List<List<E>> lists) => lists.expand((_) => _).toList(growable: false);
+  List<E> _flatten<E>(List<List<E>> lists) =>
+      lists.expand((_) => _).toList(growable: false);
   String _join(List<String> list) => list.join();
-  Path _elementsToPath(List<PathElement> elements) => Path(UnmodifiableListView(elements));
+  Path _elementsToPath(List<PathElement> elements) =>
+      Path(UnmodifiableListView(elements));
   GlobalPlaceholder _limitsToGlobalPlaceHolder((int?, int?) limits) =>
       GlobalPlaceholder(minOccurrences: limits.$1, maxOccurrences: limits.$2);
 
@@ -56,13 +60,15 @@ class PathGrammar extends GrammarDefinition<Path> {
         ref0(isRecursive).optional(),
         ref0(ebmlAtomName),
         ref0(pathDelimiter),
-      ).toSequenceParser().map((value) => PathAtom(name: value.$2, isRecursive: value.$1 != null));
+      ).toSequenceParser().map(
+          (value) => PathAtom(name: value.$2, isRecursive: value.$1 != null));
 
   /// EBMLElement            = [IsRecursive] EBMLAtomName
   Parser<PathAtom> ebmlElement() => (
         ref0(isRecursive).optional(),
         ref0(ebmlAtomName),
-      ).toSequenceParser().map((value) => PathAtom(name: value.$2, isRecursive: value.$1 != null));
+      ).toSequenceParser().map(
+          (value) => PathAtom(name: value.$2, isRecursive: value.$1 != null));
 
   /// PathDelimiter          = "\"
   Parser<String> pathDelimiter() => char(r'\');

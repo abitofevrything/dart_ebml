@@ -11,21 +11,32 @@ import 'schema.dart';
 const bytesPerInt = 8;
 const bitsPerByte = 8;
 
+/// A global constant holding an instance of the [EbmlSchemaCodec].
 const ebmlSchema = EbmlSchemaCodec();
 
+/// A [Codec] for parsing EBML Schemas.
 class EbmlSchemaCodec extends Codec<Schema, XmlDocument> {
+  /// Whether this codec is lenient.
+  ///
+  /// {@template lenient}
+  /// Lenient codecs will allow some malformed documents to be parsed without
+  /// errors.
+  /// {@endtemplate}
   final bool isLenient;
 
+  /// Create a new [EbmlSchemaCodec].
   const EbmlSchemaCodec({this.isLenient = false});
 
   @override
-  EbmlSchemaEncoder get encoder => EbmlSchemaEncoder();
+  EbmlSchemaEncoder get encoder => const EbmlSchemaEncoder();
 
   @override
   EbmlSchemaDecoder get decoder => EbmlSchemaDecoder(isLenient: isLenient);
 }
 
+/// An encoder for EBML Schemas.
 class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
+  /// Create a new [EbmlSchemaEncoder].
   const EbmlSchemaEncoder();
 
   @override
@@ -154,9 +165,14 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
   }
 }
 
+/// A decoder for EBML Schemas.
 class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
+  /// Whether this decoder is lenient.
+  ///
+  /// {@macro lenient}
   final bool isLenient;
 
+  /// Create a new [EbmlSchemaDecoder].
   const EbmlSchemaDecoder({this.isLenient = false});
 
   @override
@@ -797,8 +813,8 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       );
     }
 
+    // TODO: Floating point literal support
     return Range.between(-0xffffffffffffff, 0xffffffffffffff);
-
     // throw FormatException('Invalid range syntax');
   }
 

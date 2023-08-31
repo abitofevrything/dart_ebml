@@ -3,6 +3,7 @@ import 'schema.dart';
 
 const _maxInt = 0xffffffffffffffff;
 
+/// A schema for EBML headers present in every EBML document.
 const headerSchema = ResolvedSchema(
   docType: 'N/A',
   version: 0,
@@ -219,6 +220,8 @@ const headerSchema = ResolvedSchema(
   ],
 );
 
+/// A [ResolvedSchemaElement] for the `CRC-32` element which is implicitly added
+/// to all EBML schemas.
 const crc32Element = ResolvedSchemaElement(
   name: 'CRC-32',
   path: Path([
@@ -239,6 +242,8 @@ const crc32Element = ResolvedSchemaElement(
   maxVer: _maxInt,
 );
 
+/// A [ResolvedSchemaElement] for the `Void` element which is implicitly added
+/// to all EBML schemas.
 const voidElement = ResolvedSchemaElement(
   name: 'Void',
   path: Path([

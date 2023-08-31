@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 
 import 'schema.dart';
 
+/// A [Schema] where unknown values have been set to their defaults.
 interface class ResolvedSchema implements Schema {
   @override
   final String docType;
@@ -15,6 +16,7 @@ interface class ResolvedSchema implements Schema {
   @override
   final List<ResolvedSchemaElement> elements;
 
+  /// Create a new [ResolvedSchema].
   const ResolvedSchema({
     required this.docType,
     required this.version,
@@ -26,7 +28,8 @@ interface class ResolvedSchema implements Schema {
   ResolvedSchema resolve() => this;
 
   @override
-  int get hashCode => Object.hash(docType, version, ebml, const ListEquality().hash(elements));
+  int get hashCode =>
+      Object.hash(docType, version, ebml, const ListEquality().hash(elements));
 
   @override
   bool operator ==(Object other) =>
@@ -37,6 +40,7 @@ interface class ResolvedSchema implements Schema {
       const ListEquality().equals(other.elements, elements);
 }
 
+/// A [SchemaElement] where unknown values have been set to their defaults.
 interface class ResolvedSchemaElement implements SchemaElement {
   @override
   final String name;
@@ -80,6 +84,16 @@ interface class ResolvedSchemaElement implements SchemaElement {
   @override
   final int maxVer;
 
+  @override
+  bool get isGlobal => path.isGlobal;
+
+  @override
+  bool get isRoot => path.isRoot;
+
+  @override
+  bool get isTopLevel => path.isTopLevel;
+
+  /// Create a new [ResolvedSchemaElement].
   const ResolvedSchemaElement({
     required this.name,
     required this.path,
@@ -98,8 +112,21 @@ interface class ResolvedSchemaElement implements SchemaElement {
   });
 
   @override
-  int get hashCode => Object.hash(name, path, id, minOccurs, maxOccurs, range, length, defaultValue,
-      type, unknownSizeAllowed, recursive, recurring, minVer, maxVer);
+  int get hashCode => Object.hash(
+      name,
+      path,
+      id,
+      minOccurs,
+      maxOccurs,
+      range,
+      length,
+      defaultValue,
+      type,
+      unknownSizeAllowed,
+      recursive,
+      recurring,
+      minVer,
+      maxVer);
 
   @override
   bool operator ==(Object other) =>
