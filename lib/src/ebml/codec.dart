@@ -96,6 +96,7 @@ class EbmlDecoderSink extends ByteConversionSink {
   void add(List<int> chunk) {
     if (_bufferFillIndex + chunk.length > _buffer.length) {
       final oldBuffer = _buffer;
+      // Grow the buffer to the next power of two that can contain all the data
       _buffer = Uint8List(1 << (_bufferFillIndex + chunk.length).bitLength);
       _buffer.setRange(0, _bufferFillIndex, oldBuffer);
     }
