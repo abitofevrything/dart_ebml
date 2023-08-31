@@ -574,7 +574,13 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
     final default_ = input.getAttribute('default');
     dynamic parsedDefault;
     if (default_ != null) {
-      // TODO: Parse default value
+      parsedDefault = switch (parsedType) {
+        ElementType.integer => int.tryParse(default_),
+        ElementType.uinteger => int.tryParse(default_),
+        ElementType.string => default_,
+        ElementType.utf8 => default_,
+        _ => null, // Unsupported type
+      };
 
       if (!isLenient) {
         if (parsedType == ElementType.master) {
@@ -585,6 +591,9 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
           throw FormatException(
             'elements that declare minOccurs to be greater than 1 cannot declare a default value',
           );
+        }
+        if (parsedDefault == null) {
+          throw FormatException('Unable to parse default value');
         }
       }
     }
