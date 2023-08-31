@@ -71,7 +71,9 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
                   if (element.length != null)
                     XmlAttribute(
                         XmlName('length'), _convertRange(element.length!)),
-                  // TODO: Encode default value
+                  if (element.defaultValue != null)
+                    XmlAttribute(XmlName('default'),
+                        _convertDefault(element.type, element.defaultValue!)),
                   XmlAttribute(
                     XmlName('type'),
                     switch (element.type) {
@@ -163,6 +165,14 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
 
     return result;
   }
+
+  String _convertDefault(ElementType type, dynamic default_) => switch (type) {
+        ElementType.integer => default_.toString(),
+        ElementType.uinteger => default_.toString(),
+        ElementType.string => default_,
+        ElementType.utf8 => default_,
+        _ => throw FormatException('Unsupported default type $type'),
+      };
 }
 
 /// A decoder for EBML Schemas.
