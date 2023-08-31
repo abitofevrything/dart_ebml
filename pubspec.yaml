@@ -1,17 +1,16 @@
 name: ebml
-description: A starting point for Dart libraries or applications.
+description: An RFC 8749 compliant Extensible Binary Meta Language parser.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/abitofevrything/dart_ebml
+topics: [ebml, codec]
 
 environment:
-  sdk: ^3.2.0-90.0.dev
+  sdk: ^3.0.0
 
-# Add regular dependencies here.
 dependencies:
   collection: ^1.18.0
   petitparser: ^6.0.1
   xml: ^6.4.2
-  # path: ^1.8.0
 
 dev_dependencies:
   lints: ^2.1.0
