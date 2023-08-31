@@ -126,7 +126,22 @@ class EbmlDecoderSink extends ByteConversionSink {
         _bufferFillIndex != _bufferReadIndex) {
       final data = Uint8List.sublistView(
           _buffer, _bufferReadIndex, _bufferReadIndex += length);
-      // TODO: Shrink buffer if it is mostly consumed
+
+      if (_bufferReadIndex > (_buffer.length * 3) ~/ 4) {
+        // We have read over 75% of _buffer, shrink it
+        final oldBuffer = _buffer;
+        _buffer = Uint8List(oldBuffer.length >> 1);
+        _buffer.setRange(
+          0,
+          _bufferFillIndex - _bufferReadIndex,
+          oldBuffer,
+          _bufferReadIndex,
+        );
+
+        _bufferFillIndex -= _bufferReadIndex;
+        _bufferReadIndex = 0;
+      }
+
       return PartialConversion.value(data);
     } else if (_isClosed) {
       throw StateError('Cannot read more data from a closed sink');
@@ -705,7 +720,11 @@ class EbmlDecoderSink extends ByteConversionSink {
 
   /// Read the data for a binary element with [length] from the input.
   PartialConversion<Uint8List> _readBinaryElementData(int length) {
-    return _read(length);
+    // The buffer returned from _read is a view. To avoid keeping a much larger
+    // buffer in memory just to keep the view, make a copy instead.
+    return _read(length).map(
+      (data) => PartialConversion.value(Uint8List.fromList(data)),
+    );
   }
 }
 
