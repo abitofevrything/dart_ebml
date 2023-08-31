@@ -755,8 +755,9 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
   Range _convertRange(String input) {
     final exactlyMatch = _exactlyPattern.firstMatch(input);
-    if (exactlyMatch != null)
+    if (exactlyMatch != null) {
       return Range.exactly(int.parse(exactlyMatch.group(1)!));
+    }
 
     final notMatch = _notPattern.firstMatch(input);
     if (notMatch != null) return Range.not(int.parse(notMatch.group(1)!));
