@@ -169,7 +169,7 @@ const headerSchema = ResolvedSchema(
       maxOccurs: null,
       range: null,
       length: Range.not(0),
-      defaultValue: 1,
+      defaultValue: null,
       type: ElementType.master,
       unknownSizeAllowed: false,
       recursive: false,
