@@ -1,6 +1,6 @@
 name: ebml
 description: An RFC 8749 compliant Extensible Binary Meta Language parser.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/abitofevrything/dart_ebml
 topics: [ebml, codec]
 
