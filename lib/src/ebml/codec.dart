@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
-import 'package:ebml/src/ebml/partial_conversion.dart';
 
+import '../schema/schema_codec.dart';
 import '../schema/predefined_schema.dart';
 import '../schema/resolved_schema.dart';
 import '../schema/schema.dart';
+import 'partial_conversion.dart';
 import 'element.dart';
 
 const bitsPerByte = 8;
@@ -928,7 +929,12 @@ class _EbmlDecoderWriter {
   }
 
   Uint8List convertVint(int value, {required bool disallowAllOnes}) {
-    final neededBits = value.bitLength;
+    var neededBits = value.bitLength;
+    if (value.isNegative) {
+      // Need an extra bit for the sign
+      neededBits++;
+    }
+
     var length = (neededBits / 7).ceil();
 
     if (disallowAllOnes && value == (1 << neededBits) - 1) {
@@ -936,7 +942,11 @@ class _EbmlDecoderWriter {
       length++;
     }
 
-    final result = Uint8List(length)..buffer.asByteData().setInt64(0, value);
+    final result = Uint8List(bytesPerInt)
+      ..buffer.asByteData().setUint64(
+            0,
+            value.toUnsigned(neededBits),
+          );
 
     // // Set VINT_MARKER
     result[result.length - 1 - length] |= 1 << (bitsPerByte - length);

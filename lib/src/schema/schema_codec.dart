@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
 import 'package:petitparser/core.dart';
@@ -117,7 +118,6 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
       path.ebmlElement.name;
 
   String _convertRange(Range range) => switch (range) {
-        // TODO: Encode floating point literals correctly
         Range(:final exactly?, :final negated!) =>
           '${negated ? 'not ' : ''}$exactly',
         Range(
@@ -169,6 +169,7 @@ class EbmlSchemaEncoder extends Converter<Schema, XmlDocument> {
   String _convertDefault(ElementType type, dynamic default_) => switch (type) {
         ElementType.integer => default_.toString(),
         ElementType.uinteger => default_.toString(),
+        ElementType.float => default_.toString(),
         ElementType.string => default_,
         ElementType.utf8 => default_,
         _ => throw FormatException('Unsupported default type $type'),
@@ -589,6 +590,7 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
         ElementType.uinteger => int.tryParse(default_),
         ElementType.string => default_,
         ElementType.utf8 => default_,
+        ElementType.float => _convertFloatLiteral(default_),
         _ => null, // Unsupported type
       };
 
@@ -763,27 +765,39 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
     );
   }
 
-  // TODO: Floating point support
+  // All the characters that can occur in an integer or float literal
+  static final _likeNumber =
+      r'[+-]?(?:0[xX])?(?:[\da-fA-F]+)(?:\.?[\da-fA-F]*(?:[eEpP][+-]?[\da-fA-F]+)?[fFlL]?)?';
 
-  static final _exactlyPattern = RegExp(r'^(-?\d+)$');
-  static final _notPattern = RegExp(r'^not +(-?\d+)$');
-  static final _oneRestrictionPattern = RegExp(r'^(<|<=|>=|>) *(-?\d+)$');
+  static final _exactlyPattern = RegExp('^($_likeNumber)\$');
+  static final _notPattern = RegExp('^not +($_likeNumber)\$');
+  static final _oneRestrictionPattern =
+      RegExp('^(<|<=|>=|>) *($_likeNumber)\$');
   static final _twoRestrictionPattern =
-      RegExp(r'^(>|>=) *(-?\d+),(<|<=) *(-?\d+)$');
-  static final _rangePattern = RegExp(r'^(-?\d+)-(-?\d+)$');
+      RegExp('^(>|>=) *($_likeNumber) *, *(<|<=) *($_likeNumber)\$');
+  static final _rangePattern = RegExp('^($_likeNumber)-($_likeNumber)\$');
 
   Range _convertRange(String input) {
     final exactlyMatch = _exactlyPattern.firstMatch(input);
     if (exactlyMatch != null) {
-      return Range.exactly(int.parse(exactlyMatch.group(1)!));
+      final literal = exactlyMatch.group(1)!;
+
+      return Range.exactly(
+        int.tryParse(literal) ?? _convertFloatLiteral(literal),
+      );
     }
 
     final notMatch = _notPattern.firstMatch(input);
-    if (notMatch != null) return Range.not(int.parse(notMatch.group(1)!));
+    if (notMatch != null) {
+      final literal = notMatch.group(1)!;
+
+      return Range.not(int.tryParse(literal) ?? _convertFloatLiteral(literal));
+    }
 
     final oneRestrictionMatch = _oneRestrictionPattern.firstMatch(input);
     if (oneRestrictionMatch != null) {
-      final limit = int.parse(oneRestrictionMatch.group(2)!);
+      final literal = oneRestrictionMatch.group(2)!;
+      final limit = int.tryParse(literal) ?? _convertFloatLiteral(literal);
       final restriction = oneRestrictionMatch.group(1)!;
 
       return switch (restriction) {
@@ -799,8 +813,12 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
     final twoRestrictionMatch = _twoRestrictionPattern.firstMatch(input);
     if (twoRestrictionMatch != null) {
-      final lower = int.parse(twoRestrictionMatch.group(2)!);
-      final upper = int.parse(twoRestrictionMatch.group(4)!);
+      final lowerLiteral = twoRestrictionMatch.group(2)!;
+      final lower =
+          int.tryParse(lowerLiteral) ?? _convertFloatLiteral(lowerLiteral);
+      final upperLiteral = twoRestrictionMatch.group(4)!;
+      final upper =
+          int.tryParse(upperLiteral) ?? _convertFloatLiteral(upperLiteral);
 
       if (upper < lower) {
         throw FormatException(
@@ -817,8 +835,12 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
 
     final rangeMatch = _rangePattern.firstMatch(input);
     if (rangeMatch != null) {
-      final lower = int.parse(rangeMatch.group(1)!);
-      final upper = int.parse(rangeMatch.group(2)!);
+      final lowerLiteral = rangeMatch.group(1)!;
+      final lower =
+          int.tryParse(lowerLiteral) ?? _convertFloatLiteral(lowerLiteral);
+      final upperLiteral = rangeMatch.group(2)!;
+      final upper =
+          int.tryParse(upperLiteral) ?? _convertFloatLiteral(upperLiteral);
 
       if (upper < lower) {
         throw FormatException(
@@ -833,9 +855,7 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
       );
     }
 
-    // TODO: Floating point literal support
-    return Range.between(-0xffffffffffffff, 0xffffffffffffff);
-    // throw FormatException('Invalid range syntax');
+    throw FormatException('Invalid range syntax');
   }
 
   int _convertVint(int input) {
@@ -855,5 +875,74 @@ class EbmlSchemaDecoder extends Converter<XmlDocument, Schema> {
     }
 
     return value;
+  }
+
+  static final _decimalNoFraction =
+      RegExp(r'^([+-]?)(\d+)[Ee]([\+\-]?\d+)[fFlL]?$');
+  static final _decimalWithFraction =
+      RegExp(r'^([+-]?)(\d*)\.(\d+)(?:[Ee]([\+\-]?\d+))?[fFlL]?$');
+  static final _decimalWithPoint =
+      RegExp(r'^([+-]?)(\d+).(?:[Ee]([\+\-]?\d+))?[fFlL]?$');
+  static final _hexNoFraction =
+      RegExp(r'^([+-]?)0[xX]([0-9a-fA-F]+)\.?[Pp]([\+\-]?[0-9]+)[fFlL]?$');
+  static final _hexWithFraction = RegExp(
+      r'^([+-]?)0[xX]([0-9a-fA-F]*)\.([a-fA-F0-9]+)[Pp]([\+\-]?[0-9]+)[fFlL]?$');
+
+  double _convertFloatLiteral(String input) {
+    // Adapted from code provided by https://github.com/pingbird
+    var isHex = false;
+    var num = '0';
+    var fraction = '0';
+    var exponent = '0';
+    String? sign;
+
+    Match? match;
+    if ((match = _decimalNoFraction.firstMatch(input)) != null) {
+      sign = match!.group(1);
+      num = match.group(2)!;
+      exponent = match.group(3)!;
+    } else if ((match = _decimalWithFraction.firstMatch(input)) != null) {
+      sign = match!.group(1);
+      final maybeNum = match.group(2);
+      if (maybeNum?.isNotEmpty == true) num = maybeNum!;
+      fraction = match.group(3)!;
+      final maybeExponent = match.group(4);
+      if (maybeExponent?.isNotEmpty == true) exponent = maybeExponent!;
+    } else if ((match = _decimalWithPoint.firstMatch(input)) != null) {
+      sign = match!.group(1);
+      num = match.group(2)!;
+      final maybeExponent = match.group(3);
+      if (maybeExponent?.isNotEmpty == true) exponent = maybeExponent!;
+    } else if ((match = _hexNoFraction.firstMatch(input)) != null) {
+      isHex = true;
+      sign = match!.group(1);
+      num = match.group(2)!;
+      exponent = match.group(3)!;
+    } else if ((match = _hexWithFraction.firstMatch(input)) != null) {
+      isHex = true;
+      sign = match!.group(1);
+      final maybeNum = match.group(2);
+      if (maybeNum?.isNotEmpty == true) num = maybeNum!;
+      fraction = match.group(3)!;
+      exponent = match.group(4)!;
+    } else {
+      throw FormatException('Invalid float literal $input');
+    }
+
+    final base = isHex ? 16 : 10;
+
+    final parsedNum = int.parse(num, radix: base);
+    final parsedFraction =
+        int.parse(fraction, radix: base) / math.pow(base, fraction.length);
+    final parsedExponent = int.parse(exponent);
+
+    final result =
+        (parsedNum + parsedFraction) * math.pow(isHex ? 2 : 10, parsedExponent);
+
+    if (sign == '-') {
+      return -result;
+    }
+
+    return result;
   }
 }
