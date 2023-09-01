@@ -918,7 +918,7 @@ class _EbmlDecoderWriter {
   }
 
   Uint8List convertUtf8Data(String data) {
-    return utf8.encode(data);
+    return const Utf8Encoder().convert(data);
   }
 
   Uint8List convertDateData(DateTime data) {
